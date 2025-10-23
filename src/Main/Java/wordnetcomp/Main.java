@@ -27,22 +27,22 @@ public class Main {
         Path book    = Paths.get("Resources", "book.txt");
         Path outDir  = Paths.get("OutputFiles");
         String task  = "all";               // all | wf | co | graph | gen
-        int kTier    = 3;                   // how many frequency tiers to print (wf & co)
+        int kTier    = 3;                   // tiers to print (wf & co)
         String start = "paul";              // start word (graph & gen)
         String target = "arrakis";          // target word (graph)
         int hops     = 1;                   // neighbor radius (graph)
-        int genLen   = 6;                   // generated sentence length (gen)
+        int genLen   = 6;                   // sentence length (gen)
     }
 
     public static void main(String[] args) {
         Config cfg = parseArgs(args);
 
-        // Validate IO
+        // Validate IO (multicatch as requested)
         try {
             ensureFileExists(cfg.book);
             Files.createDirectories(cfg.outDir);
-        } catch (IOException e) {
-            System.err.println("FATAL: " + e.getMessage());
+        } catch (IOException | SecurityException e) {
+            logError("FATAL: " + e.getMessage(), e);
             return;
         }
 
@@ -51,18 +51,20 @@ public class Main {
         final Corpus corpus;
         try {
             corpus = Corpus.load(cfg.book);
-        } catch (Exception e) {
-            System.err.println("FATAL: failed to load corpus: " + e.getMessage());
-            e.printStackTrace();
+        } catch (IOException e) {                       // checked (file/IO issues)
+            logError("FATAL: failed to load corpus: " + e.getMessage(), e);
+            return;
+        } catch (RuntimeException e) {                  // unchecked (parsing/etc.)
+            logError("FATAL: failed to load corpus: " + e.getMessage(), e);
             return;
         }
-        logDuration("Load corpus", t0);
+        logDuration("Load corpus", t0); // use t0 so the warning disappears
 
         boolean all = cfg.task.equals("all");
-        if (all || cfg.task.equals("wf"))   run("Task 1 – Word Frequency", () -> runWordFrequency(corpus, cfg));
-        if (all || cfg.task.equals("co"))   run("Task 2 – Co-occurrence",  () -> runCoOccurrence(corpus, cfg));
-        if (all || cfg.task.equals("graph"))run("Task 3 – Word Graph",     () -> runWordGraph(corpus, cfg));
-        if (all || cfg.task.equals("gen"))  run("Task 4 – Generator",      () -> runGenerator(corpus, cfg));
+        if (all || cfg.task.equals("wf"))    run("Task 1 – Word Frequency", () -> runWordFrequency(corpus, cfg));
+        if (all || cfg.task.equals("co"))    run("Task 2 – Co-occurrence",  () -> runCoOccurrence(corpus, cfg));
+        if (all || cfg.task.equals("graph")) run("Task 3 – Word Graph",     () -> runWordGraph(corpus, cfg));
+        if (all || cfg.task.equals("gen"))   run("Task 4 – Generator",      () -> runGenerator(corpus, cfg));
     }
 
     // ---------- Task runners ----------
@@ -81,7 +83,6 @@ public class Main {
             System.err.println("WARN: writing word-frequency CSVs failed: " + ioe.getMessage());
         }
 
-        // Print top 1..k tiers (defensive bounds)
         int k = Math.max(1, cfg.kTier);
         for (int tier = 1; tier <= k; tier++) wf.getTopKWords(tier);
     }
@@ -99,7 +100,7 @@ public class Main {
             System.err.println("WARN: writing bigram CSV failed: " + ioe.getMessage());
         }
 
-        co.getBigramRank(Math.max(1, cfg.kTier)); // demo query
+        co.getBigramRank(Math.max(1, cfg.kTier));
     }
 
     private static void runWordGraph(Corpus corpus, Config cfg) {
@@ -135,16 +136,17 @@ public class Main {
         long t = System.nanoTime();
         try {
             task.run();
-        } catch (Throwable th) {
-            System.err.println("ERROR in " + title + ": " + th.getMessage());
-            th.printStackTrace(System.err);
+        } catch (RuntimeException | Error ex) { // safe, no "catch Throwable"
+            logError("ERROR in " + title + ": " + ex.getMessage(), ex);
         } finally {
             logDuration(title, t);
         }
     }
 
     private static boolean corpusContains(Corpus corpus, String w) {
-        for (List<String> s : corpus.sentences) for (String x : s) if (x.equals(w)) return true;
+        for (List<String> s : corpus.sentences)
+            for (String x : s)
+                if (x.equals(w)) return true;
         return false;
     }
 
@@ -155,6 +157,16 @@ public class Main {
     private static void logDuration(String label, long startNanos) {
         long ms = (System.nanoTime() - startNanos) / 1_000_000L;
         System.out.println(label + " finished in " + ms + " ms");
+    }
+
+    private static void logError(String message, Throwable t) {
+        System.err.println(message);
+        System.err.println(t.getClass().getSimpleName() + ": " + t.getMessage());
+        Throwable cause = t.getCause();
+        while (cause != null) {
+            System.err.println("Caused by: " + cause.getClass().getSimpleName() + ": " + cause.getMessage());
+            cause = cause.getCause();
+        }
     }
 
     private static Config parseArgs(String[] args) {
@@ -171,29 +183,36 @@ public class Main {
                 case "--len":               c.genLen = parseInt(args[++i], c.genLen); break;
                 case "-h": case "--help":   printHelpAndExit();
                 default:
-                    if (args[i].startsWith("-")) { System.err.println("Unknown option: " + args[i]); printHelpAndExit(); }
+                    if (args[i].startsWith("-")) {
+                        System.err.println("Unknown option: " + args[i]);
+                        printHelpAndExit();
+                    }
             }
         }
         return c;
     }
 
     private static int parseInt(String s, int def) {
-        try { return Integer.parseInt(s); } catch (Exception e) { return def; }
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return def;
+        }
     }
 
     private static void printHelpAndExit() {
-        System.out.println(
-            "Usage: java wordnetcomp.Main [options]\n" +
-            "  -i, --input <file>     Input text file (default Resources/book.txt)\n" +
-            "  -o, --out <dir>        Output directory (default OutputFiles)\n" +
-            "  -t, --task <name>      all | wf | co | graph | gen (default all)\n" +
-            "  -k, --tier <n>         Print top <n> frequency tiers (default 3)\n" +
-            "  --start <word>         Start word for graph & generator (default 'paul')\n" +
-            "  --target <word>        Target word for graph path (default 'arrakis')\n" +
-            "  --hops <n>             Hop distance for neighbors (default 1)\n" +
-            "  --len <n>              Generated sentence length (default 6)\n" +
-            "  -h, --help             Show this help\n"
-        );
+        System.out.println("""
+            Usage: java wordnetcomp.Main [options]
+              -i, --input <file>     Input text file (default Resources/book.txt)
+              -o, --out <dir>        Output directory (default OutputFiles)
+              -t, --task <name>      all | wf | co | graph | gen (default all)
+              -k, --tier <n>         Print top <n> frequency tiers (default 3)
+              --start <word>         Start word for graph & generator (default 'paul')
+              --target <word>        Target word for graph path (default 'arrakis')
+              --hops <n>             Hop distance for neighbors (default 1)
+              --len <n>              Generated sentence length (default 6)
+              -h, --help             Show this help
+            """);
         System.exit(0);
     }
 }
