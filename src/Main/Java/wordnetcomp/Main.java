@@ -14,11 +14,6 @@ import java.util.*;
  *   graph – word graph queries (shortest path, words at hops)
  *   gen   – simple text generator
  *   all   – run everything (default)
- *
- * Examples:
- *   java wordnetcomp.Main --task wf -k 3
- *   java wordnetcomp.Main --task graph --start paul --target arrakis --hops 2
- *   java wordnetcomp.Main -i Resources/book.txt -o OutputFiles --task all
  */
 public class Main {
 
@@ -37,7 +32,7 @@ public class Main {
     public static void main(String[] args) {
         Config cfg = parseArgs(args);
 
-        // Validate IO (multicatch as requested)
+        // Validate IO (multicatch)
         try {
             ensureFileExists(cfg.book);
             Files.createDirectories(cfg.outDir);
@@ -51,14 +46,11 @@ public class Main {
         final Corpus corpus;
         try {
             corpus = Corpus.load(cfg.book);
-        } catch (IOException e) {                       // checked (file/IO issues)
-            logError("FATAL: failed to load corpus: " + e.getMessage(), e);
-            return;
-        } catch (RuntimeException e) {                  // unchecked (parsing/etc.)
+        } catch (IOException | RuntimeException e) {   // <-- multicatch here
             logError("FATAL: failed to load corpus: " + e.getMessage(), e);
             return;
         }
-        logDuration("Load corpus", t0); // use t0 so the warning disappears
+        logDuration("Load corpus", t0);
 
         boolean all = cfg.task.equals("all");
         if (all || cfg.task.equals("wf"))    run("Task 1 – Word Frequency", () -> runWordFrequency(corpus, cfg));
@@ -136,7 +128,7 @@ public class Main {
         long t = System.nanoTime();
         try {
             task.run();
-        } catch (RuntimeException | Error ex) { // safe, no "catch Throwable"
+        } catch (RuntimeException | Error ex) { // already multicatch
             logError("ERROR in " + title + ": " + ex.getMessage(), ex);
         } finally {
             logDuration(title, t);
