@@ -1,6 +1,9 @@
 package wordnetcomp;
 
 import Util.Corpus;
+import Util.Pair;
+import Util.Graph;
+
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
@@ -14,6 +17,12 @@ import java.util.*;
  *   graph – word graph queries (shortest path, words at hops)
  *   gen   – simple text generator
  *   all   – run everything (default)
+ *
+ * Examples:
+ *   java wordnetcomp.Main --task wf -k 3
+ *   java wordnetcomp.Main --task graph --start paul --target arrakis --hops 2
+ *   java wordnetcomp.Main -i Resources/book.txt -o OutputFiles --task all
+ *   java wordnetcomp.Main --check
  */
 public class Main {
 
@@ -22,41 +31,43 @@ public class Main {
         Path book    = Paths.get("Resources", "book.txt");
         Path outDir  = Paths.get("OutputFiles");
         String task  = "all";               // all | wf | co | graph | gen
-        int kTier    = 3;                   // tiers to print (wf & co)
+        int kTier    = 3;                   // how many frequency tiers to print (wf & co)
         String start = "paul";              // start word (graph & gen)
         String target = "arrakis";          // target word (graph)
         int hops     = 1;                   // neighbor radius (graph)
-        int genLen   = 6;                   // sentence length (gen)
+        int genLen   = 6;                   // generated sentence length (gen)
+        boolean checkSelf = false;          // run quick self-check after tasks
     }
 
     public static void main(String[] args) {
         Config cfg = parseArgs(args);
 
-        // Validate IO (multicatch)
+        // Validate IO
         try {
             ensureFileExists(cfg.book);
             Files.createDirectories(cfg.outDir);
-        } catch (IOException | SecurityException e) {
+        } catch (IOException e) {
             logError("FATAL: " + e.getMessage(), e);
             return;
         }
 
         // Load corpus (once)
-        long t0 = System.nanoTime();
         final Corpus corpus;
         try {
             corpus = Corpus.load(cfg.book);
-        } catch (IOException | RuntimeException e) {   // <-- multicatch here
+        } catch (IOException | RuntimeException e) {
             logError("FATAL: failed to load corpus: " + e.getMessage(), e);
             return;
         }
-        logDuration("Load corpus", t0);
+        logDuration("Load corpus", System.nanoTime()); // friendly first tick
 
         boolean all = cfg.task.equals("all");
         if (all || cfg.task.equals("wf"))    run("Task 1 – Word Frequency", () -> runWordFrequency(corpus, cfg));
         if (all || cfg.task.equals("co"))    run("Task 2 – Co-occurrence",  () -> runCoOccurrence(corpus, cfg));
         if (all || cfg.task.equals("graph")) run("Task 3 – Word Graph",     () -> runWordGraph(corpus, cfg));
         if (all || cfg.task.equals("gen"))   run("Task 4 – Generator",      () -> runGenerator(corpus, cfg));
+
+        if (cfg.checkSelf) run("Self-check", () -> selfCheck(corpus));
     }
 
     // ---------- Task runners ----------
@@ -66,7 +77,7 @@ public class Main {
         WordFrequency wf = new WordFrequency();
         wf.buildCounts(corpus);
         wf.buildRankBuckets();
-        logDuration("Build word counts", t);
+        System.out.println("Build word counts finished in " + elapsedMs(t) + " ms");
 
         try {
             wf.writeWordFrequencyCSV(cfg.outDir.resolve("word_frequency.csv"));
@@ -84,7 +95,7 @@ public class Main {
         CoOccurrence co = new CoOccurrence();
         co.buildBigrams(corpus);
         co.buildRankBuckets();
-        logDuration("Build bigrams", t);
+        System.out.println("Build bigrams finished in " + elapsedMs(t) + " ms");
 
         try {
             co.writeBigramCSV(cfg.outDir.resolve("bigram_frequency.csv"));
@@ -121,6 +132,47 @@ public class Main {
         g.generateSentence(cfg.start.toLowerCase(Locale.ROOT), Math.max(1, cfg.genLen));
     }
 
+    // ---------- Self-check (optional) ----------
+
+    private static void selfCheck(Corpus corpus) {
+        int issues = 0;
+
+        // Word presence
+        issues += expect(corpusContains(corpus, "paul"),   "word 'paul' exists");
+        issues += expect(corpusContains(corpus, "arrakis"),"word 'arrakis' exists");
+
+        // Bigram presence
+        CoOccurrence co = new CoOccurrence();
+        co.buildBigrams(corpus);
+        Map<Pair,Integer> bc = co.getBigramCountMap();
+
+        issues += expect(bc.containsKey(new Pair("paul","atreides")),   "bigram 'paul atreides' exists");
+        issues += expect(bc.containsKey(new Pair("desert","power")),    "bigram 'desert power' exists");
+        issues += expect(bc.containsKey(new Pair("gom","jabbar")),      "bigram 'gom jabbar' exists");
+
+        // Graph shortest path sanity (should be 4 hops and ~400 cost in this corpus)
+        Graph g = Graph.fromBigramCounts(bc);
+        Graph.PathResult pr = g.shortestPath("paul", "arrakis");
+        boolean okPath = pr != null && pr.path.size() - 1 == 4 && Math.abs(pr.distance - 400.0) < 1e-9;
+        issues += expect(okPath, "shortest path paul→arrakis is 4 hops with cost 400.0");
+
+        if (issues == 0) {
+            System.out.println("Self-check OK ✅");
+        } else {
+            System.out.println("Self-check found " + issues + " issue(s) ❗ (see warnings above)");
+        }
+    }
+
+    private static int expect(boolean condition, String label) {
+        if (condition) {
+            System.out.println("[OK]   " + label);
+            return 0;
+        } else {
+            System.out.println("[WARN] " + label + " – not satisfied");
+            return 1;
+        }
+    }
+
     // ---------- Utility ----------
 
     private static void run(String title, Runnable task) {
@@ -128,11 +180,15 @@ public class Main {
         long t = System.nanoTime();
         try {
             task.run();
-        } catch (RuntimeException | Error ex) { // already multicatch
+        } catch (RuntimeException | Error ex) { // multi-catch
             logError("ERROR in " + title + ": " + ex.getMessage(), ex);
         } finally {
-            logDuration(title, t);
+            System.out.println(title + " finished in " + elapsedMs(t) + " ms");
         }
+    }
+
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000L;
     }
 
     private static boolean corpusContains(Corpus corpus, String w) {
@@ -144,11 +200,6 @@ public class Main {
 
     private static void ensureFileExists(Path p) throws IOException {
         if (!Files.isRegularFile(p)) throw new IOException("Input file not found: " + p.toAbsolutePath());
-    }
-
-    private static void logDuration(String label, long startNanos) {
-        long ms = (System.nanoTime() - startNanos) / 1_000_000L;
-        System.out.println(label + " finished in " + ms + " ms");
     }
 
     private static void logError(String message, Throwable t) {
@@ -173,6 +224,7 @@ public class Main {
                 case "--target":            c.target = args[++i]; break;
                 case "--hops":              c.hops   = parseInt(args[++i], c.hops); break;
                 case "--len":               c.genLen = parseInt(args[++i], c.genLen); break;
+                case "--check":             c.checkSelf = true; break;
                 case "-h": case "--help":   printHelpAndExit();
                 default:
                     if (args[i].startsWith("-")) {
@@ -203,6 +255,7 @@ public class Main {
               --target <word>        Target word for graph path (default 'arrakis')
               --hops <n>             Hop distance for neighbors (default 1)
               --len <n>              Generated sentence length (default 6)
+              --check                Run a quick self-check of counts/graph
               -h, --help             Show this help
             """);
         System.exit(0);
