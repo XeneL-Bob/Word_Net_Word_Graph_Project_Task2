@@ -42,7 +42,13 @@ public class CoOccurrence {
     public void buildRankBuckets() {
         bucket.clear();
         for (Map.Entry<Pair, Integer> e : bigramCount.entrySet()) {
-            bucket.computeIfAbsent(e.getValue(), k -> new ArrayList<>()).add(e.getKey());
+            int freq = e.getValue();
+            List<Pair> list = bucket.get(freq);
+            if (list == null) {
+                list = new ArrayList<>();
+                bucket.put(freq, list);
+            }
+            list.add(e.getKey());
         }
         for (List<Pair> list : bucket.values()) Collections.sort(list); // (from asc, to asc)
         freqsDesc = new ArrayList<>(bucket.keySet());
