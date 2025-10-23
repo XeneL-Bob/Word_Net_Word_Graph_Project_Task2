@@ -7,7 +7,7 @@ import java.util.*;
 
 /**
  * Corpus reader: loads book.txt once and shares tokens to all tasks.
- * Junior note: reading once avoids inconsistent parsing and is faster overall.
+ * note: reading once avoids inconsistent parsing and is faster overall.
  */
 public final class Corpus {
     public final List<List<String>> sentences; // immutable

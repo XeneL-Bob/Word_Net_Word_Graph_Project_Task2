@@ -5,7 +5,7 @@ import java.util.*;
 /**
  * Directed weighted word graph built from bigram counts.
  * Weight(u->v) = 100.0 / count(u,v). Higher co-occ = lower cost.
- * Junior note: adjacency lists are kept sorted by 'to' (alpha)
+ * note: adjacency lists are kept sorted by 'to' (alpha)
  * so any tie-breaking is deterministic.
  */
 public final class Graph {

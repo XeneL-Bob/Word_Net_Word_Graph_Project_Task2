@@ -1,13 +1,12 @@
 package wordnetcomp;
 
 import Util.*;
-
 import java.nio.file.*;
 import java.util.*;
 
 /**
  * Task 3: Build word graph from bigrams, answer shortest path and exact-hop queries.
- * Junior note: Dijkstra uses weight=100.0/count so high co-occurrence yields lower cost.
+ * note: Dijkstra uses weight=100.0/count so high co-occurrence yields lower cost.
  */
 public class WordConnection {
 

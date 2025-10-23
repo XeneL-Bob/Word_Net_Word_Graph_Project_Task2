@@ -8,7 +8,7 @@ import java.util.*;
 
 /**
  * Task 2: Count ordered bigrams and query kth-tier bigram frequency.
- * Junior note: direction matters (u->v != v->u).
+ * note: direction matters (u->v != v->u).
  */
 public class CoOccurrence {
 

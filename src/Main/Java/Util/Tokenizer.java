@@ -2,7 +2,7 @@ package Util;
 
 /**
  * Tokenizer utility.
- * Junior note: keep input sanitation in one place so
+ * note: keep input sanitation in one place so
  * every task (freq, bigrams, graph) stays consistent/deterministic.
  */
 public final class Tokenizer {

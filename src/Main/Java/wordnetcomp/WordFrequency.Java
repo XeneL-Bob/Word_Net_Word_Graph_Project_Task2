@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 /**
  * Task 1: Count words, sort by (freq desc, word asc), and answer kth-tier query.
- * Junior note: we pre-bucket by frequency so getTopKWords(k) is O(size_of_tier).
+ * note: we pre-bucket by frequency so getTopKWords(k) is O(size_of_tier).
  */
 public class WordFrequency {
 
