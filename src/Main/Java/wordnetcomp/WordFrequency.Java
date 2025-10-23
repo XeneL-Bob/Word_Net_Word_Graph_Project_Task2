@@ -1,7 +1,6 @@
 package wordnetcomp;
 
 import Util.Corpus;
-
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
