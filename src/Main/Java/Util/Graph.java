@@ -36,10 +36,19 @@ public final class Graph {
         for (Map.Entry<Pair, Integer> e : bigramCount.entrySet()) {
             Pair p = e.getKey();
             int c  = e.getValue();
-            g.adj.computeIfAbsent(p.from, k -> new ArrayList<>()).add(new Edge(p.to, c));
-            // ensure node exists even if no outgoing edges
-            g.adj.computeIfAbsent(p.to, k -> new ArrayList<>());
+
+            // was: g.adj.computeIfAbsent(p.from, k -> new ArrayList<>()).add(new Edge(p.to, c));
+            List<Edge> list = g.adj.get(p.from);
+            if (list == null) {
+                list = new ArrayList<>();
+                g.adj.put(p.from, list);
+            }
+            list.add(new Edge(p.to, c));
+
+            // was: g.adj.computeIfAbsent(p.to, k -> new ArrayList<>());
+            g.adj.putIfAbsent(p.to, new ArrayList<>());
         }
+
         // sort neighbors by destination for deterministic traversals
         for (List<Edge> edges : g.adj.values()) {
             edges.sort(Comparator.comparing(ed -> ed.to));
