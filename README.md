@@ -67,7 +67,7 @@ Usage: java wordnetcomp.Main [options]
   -h, --help             Show this help
 ```
 
-### Examples
+### Examples via tasks "single"
 ```bash
 # Task 1 only: top-5 tiers
 java -cp bin wordnetcomp.Main --task wf -k 5
