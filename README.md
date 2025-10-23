@@ -1,6 +1,5 @@
 # Word_Net_Word_Graph_Project_Task2
 Repo for Task 2 of CSC201 by A Innes (Xenel_BoB)
-# Word Net / Word Graph – CSC201 DSA Task 2
 
 A small language-analysis engine that ingests a cleaned book (one sentence per line, lower-case, no punctuation), builds a **directed, weighted word graph** from ordered bigrams, and supports four tasks:
 
