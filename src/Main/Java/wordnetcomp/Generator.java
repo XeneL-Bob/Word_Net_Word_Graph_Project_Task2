@@ -16,6 +16,9 @@ public class Generator {
 
     /** Build bigram counts and pre-sort neighbors for O(1) next-choice. */
     public void prepare(Corpus corpus) {
+        bestNext.clear();
+
+        // 1) Count ordered bigrams
         Map<Pair, Integer> bigramCount = new HashMap<>();
         for (List<String> sent : corpus.sentences) {
             for (int i = 0; i + 1 < sent.size(); i++) {
@@ -23,17 +26,28 @@ public class Generator {
                 bigramCount.merge(p, 1, Integer::sum);
             }
         }
+
+        // 2) Group by source word (no computeIfAbsent to avoid 'k not used' warning)
         Map<String, Map<String, Integer>> byFrom = new HashMap<>();
         for (Map.Entry<Pair, Integer> e : bigramCount.entrySet()) {
-            byFrom.computeIfAbsent(e.getKey().from, k -> new HashMap<>())
-                  .put(e.getKey().to, e.getValue());
+            String from = e.getKey().from;
+            String to   = e.getKey().to;
+            int    cnt  = e.getValue();
+
+            Map<String, Integer> inner = byFrom.get(from);
+            if (inner == null) {
+                inner = new HashMap<>();
+                byFrom.put(from, inner);
+            }
+            inner.put(to, cnt);
         }
-        // sort each neighbor list by (count desc, to asc)
+
+        // 3) Sort each neighbor list by (count desc, to asc)
         for (Map.Entry<String, Map<String,Integer>> e : byFrom.entrySet()) {
             List<Map.Entry<String,Integer>> lst = new ArrayList<>(e.getValue().entrySet());
-            lst.sort((a,b) -> {
-                int c = Integer.compare(b.getValue(), a.getValue());
-                return (c != 0) ? c : a.getKey().compareTo(b.getKey());
+            lst.sort((a, b) -> {
+                int c = Integer.compare(b.getValue(), a.getValue()); // count desc
+                return (c != 0) ? c : a.getKey().compareTo(b.getKey()); // to asc
             });
             bestNext.put(e.getKey(), lst);
         }
@@ -42,6 +56,7 @@ public class Generator {
     // ---------- Sentence generation ----------
     public void generateSentence(String sWord, int length) {
         if (length < 1) length = 1;
+
         List<String> sentence = new ArrayList<>();
         sentence.add(sWord);
 
@@ -49,14 +64,14 @@ public class Generator {
         while (sentence.size() < length) {
             List<Map.Entry<String,Integer>> outs = bestNext.get(cur);
             if (outs == null || outs.isEmpty()) {
-                System.out.printf("Incomplete sentence with %d words is: %s\n", sentence.size(), sentence);
+                System.out.printf("Incomplete sentence with %d words is: %s%n", sentence.size(), sentence);
                 return;
             }
             String next = outs.get(0).getKey(); // best by our sorting
             sentence.add(next);
             cur = next;
         }
-        System.out.printf("Complete sentence with %d words is: %s\n", sentence.size(), sentence);
+        System.out.printf("Complete sentence with %d words is: %s%n", sentence.size(), sentence);
     }
 
     // ---------- Standalone entry (optional) ----------
