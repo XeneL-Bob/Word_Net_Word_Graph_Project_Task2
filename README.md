@@ -181,7 +181,7 @@ To make every run reproducible:
 
 ---
 
-## Self-check (optional)
+## Self-check
 
 Run:
 
