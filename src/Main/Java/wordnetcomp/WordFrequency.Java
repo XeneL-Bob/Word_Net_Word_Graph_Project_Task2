@@ -53,9 +53,16 @@ public class WordFrequency {
     // ---------- Precompute rank tiers ----------
     public void buildRankBuckets() {
         freqBuckets.clear();
-        for (Map.Entry<String, Integer> e : wordCount.entrySet()) {
-            freqBuckets.computeIfAbsent(e.getValue(), k -> new ArrayList<>()).add(e.getKey());
+            for (Map.Entry<String, Integer> e : wordCount.entrySet()) {
+        int freq  = e.getValue();
+        String w  = e.getKey();
+        List<String> tier = freqBuckets.get(freq);
+        if (tier == null) {
+            tier = new ArrayList<>();
+            freqBuckets.put(freq, tier);
         }
+        tier.add(w);
+    }
         for (List<String> tier : freqBuckets.values()) Collections.sort(tier); // alpha inside tier
         distinctFreqsDesc = new ArrayList<>(freqBuckets.keySet());
         distinctFreqsDesc.sort(Comparator.reverseOrder());
