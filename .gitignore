@@ -1,0 +1,27 @@
+# --- Java build artifacts to ignore ---
+bin/
+out/
+target/
+build/
+*.class
+*.jar
+*.war
+*.ear
+
+# --- Project-generated outputs ---
+OutputFiles/
+
+# --- VS Code / Eclipse / IntelliJ project files ---
+.vscode/
+.classpath
+.project
+.settings/
+.idea/
+*.iml
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
