@@ -1,9 +1,8 @@
 package wordnetcomp;
 
 import Util.Corpus;
-import Util.Pair;
 import Util.Graph;
-
+import Util.Pair;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
@@ -52,6 +51,7 @@ public class Main {
         }
 
         // Load corpus (once)
+        long loadStart = System.nanoTime();
         final Corpus corpus;
         try {
             corpus = Corpus.load(cfg.book);
@@ -59,7 +59,7 @@ public class Main {
             logError("FATAL: failed to load corpus: " + e.getMessage(), e);
             return;
         }
-        logDuration("Load corpus", System.nanoTime()); // friendly first tick
+        System.out.println("Load corpus finished in " + elapsedMs(loadStart) + " ms");
 
         boolean all = cfg.task.equals("all");
         if (all || cfg.task.equals("wf"))    run("Task 1 – Word Frequency", () -> runWordFrequency(corpus, cfg));
@@ -138,17 +138,17 @@ public class Main {
         int issues = 0;
 
         // Word presence
-        issues += expect(corpusContains(corpus, "paul"),   "word 'paul' exists");
-        issues += expect(corpusContains(corpus, "arrakis"),"word 'arrakis' exists");
+        issues += expect(corpusContains(corpus, "paul"),    "word 'paul' exists");
+        issues += expect(corpusContains(corpus, "arrakis"), "word 'arrakis' exists");
 
         // Bigram presence
         CoOccurrence co = new CoOccurrence();
         co.buildBigrams(corpus);
         Map<Pair,Integer> bc = co.getBigramCountMap();
 
-        issues += expect(bc.containsKey(new Pair("paul","atreides")),   "bigram 'paul atreides' exists");
-        issues += expect(bc.containsKey(new Pair("desert","power")),    "bigram 'desert power' exists");
-        issues += expect(bc.containsKey(new Pair("gom","jabbar")),      "bigram 'gom jabbar' exists");
+        issues += expect(bc.containsKey(new Pair("paul","atreides")), "bigram 'paul atreides' exists");
+        issues += expect(bc.containsKey(new Pair("desert","power")),  "bigram 'desert power' exists");
+        issues += expect(bc.containsKey(new Pair("gom","jabbar")),    "bigram 'gom jabbar' exists");
 
         // Graph shortest path sanity (should be 4 hops and ~400 cost in this corpus)
         Graph g = Graph.fromBigramCounts(bc);
