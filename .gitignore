@@ -9,7 +9,8 @@ build/
 *.ear
 
 # --- Project-generated outputs ---
-OutputFiles/
+OutputFiles/*
+!OutputFiles/.gitkeep
 
 # --- VS Code / Eclipse / IntelliJ project files ---
 .vscode/
