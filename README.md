@@ -248,7 +248,7 @@ Complete sentence with 6 words is: [paul, and, chani, guide, atreides, depart]
 
 ## Notes on academic integrity
 
-All algorithms are implemented with standard Java collections and course-level techniques. Do not post private repository publicly. 
+ALL algorithms are implemented with standard Java collections and course-level techniques using standard Java. Do not post private repositories publicly =) 
 
 ---
 
